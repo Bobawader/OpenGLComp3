@@ -130,8 +130,22 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="character.cpp" />
     <ClCompile Include="Comp3.cpp" />
     <ClCompile Include="glad.c" />
+    <ClCompile Include="NPC.cpp" />
+    <ClCompile Include="Obj.cpp" />
+    <ClCompile Include="Parametric.cpp" />
+    <ClCompile Include="Vertex.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Camera.h" />
+    <ClInclude Include="character.h" />
+    <ClInclude Include="NPC.h" />
+    <ClInclude Include="Obj.h" />
+    <ClInclude Include="Parametric.h" />
+    <ClInclude Include="Vertex.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
