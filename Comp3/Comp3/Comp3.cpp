@@ -44,14 +44,43 @@ void checkProgramLinking(GLuint program) {
     }
 }
 
+const int width = 100;
+const int height = 100;
+
+float heightmap[width][height];
+
+
+void createHeightmap() {
+    // Fill the heightmap with values
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            // Use a sine wave function to create "bumps"
+            float heightValue = 1.0f * (sin(i / 10.0f) + cos(j / 10.0f));
+            heightmap[i][j] = heightValue;
+
+          
+        }
+    }
+}
+
+
+
+
+
+
 
 
 int main()
 {
+
+    createHeightmap();
+
     Camera camera;
     Vertex vertex;
-    glm::vec3 startPosition = glm::vec3(1.0f, 0.0f, 0.0f); 
-    Character character(startPosition, 0.01f);
+    glm::vec3 startPosition = glm::vec3(0.0f, 0.0f, 0.0f); 
+    float startSpeed = 0.01f;
+    /*Character character(startPosition, startSpeed, heightmap, width, height);*/
+    Character character(startPosition, startSpeed, &heightmap[0][0], width, height);
     Parametric parametric;
     
 
@@ -86,35 +115,7 @@ int main()
         return -1;
     }
 
-    unsigned int texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    // Set texture wrapping parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // Set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // Load image, create texture and generate mipmaps
-    int width, height, nrChannels;
-    unsigned char* data = stbi_load("Texture/container2.jpg", &width, &height, &nrChannels, 0);
-    if (data)
-    {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else
-    {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
-
-    //glm::vec3 position(0.0f, 0.0f, 0.0f);
-    //glm::vec3 orientation(0.0f, 0.0f, 0.0f);
-    ////unsigned int texture;
-    ////glGenTextures(1, &texture);
-
-    //Obj obj(position, orientation, texture);
+    
 
     
 
@@ -122,42 +123,27 @@ int main()
 #version 330 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec2 aTexCoord;
 
 uniform mat4 model;
 uniform mat4 view;
 uniform mat4 projection;
 
 out vec3 ourColor;
+out vec2 TexCoord;
 
 void main()
 {
     gl_Position = projection * view * model * vec4(aPos, 1.0);
     ourColor = aColor;
+    TexCoord = aTexCoord;
 }
 )glsl";
 
 
-    const char* vertexShaderTextureSource = R"glsl(
-#version 330 core
-layout (location = 0) in vec3 aPos;
-layout (location = 1) in vec3 aColor;
-layout (location = 2) in vec2 aTexCoords;
+    
 
-uniform mat4 model;
-uniform mat4 view;
-uniform mat4 projection;
 
-out vec3 ourColor;
-out vec2 TexCoords;
-
-void main()
-{
-    gl_Position = projection * view * model * vec4(aPos, 1.0);
-    ourColor = aColor;
-    TexCoords = aTexCoords;
-}
-
-)glsl";
 
 
     
@@ -212,17 +198,13 @@ void main()
 
     const char* fragmentShaderObjSource = R"glsl(
 #version 330 core
-in vec3 ourColor;
-in vec2 TexCoords;
-
-uniform sampler2D ourTexture;
-
 out vec4 FragColor;
-
+in vec3 ourColor;
+in vec2 TexCoord;
+uniform sampler2D ourTexture;
 void main()
 {
-    vec3 texColor = texture(ourTexture, TexCoords).rgb;
-    FragColor = vec4(ourColor * texColor, 1.0f);
+FragColor = texture(ourTexture, TexCoord);
 }
 
 )glsl";
@@ -235,11 +217,11 @@ void main()
     checkShaderCompilation(vertexShader);
 
     unsigned int vertexShaderTexture = glCreateShader(GL_VERTEX_SHADER);
-    glShaderSource(vertexShaderTexture, 1, &vertexShaderTextureSource, nullptr);
+    glShaderSource(vertexShaderTexture, 1, &vertexShaderSource, nullptr);
     glCompileShader(vertexShaderTexture);
     checkShaderCompilation(vertexShaderTexture);
 
-    // Compile the fragment shader
+    // Texture Obj
     unsigned int fragmentShaderObj = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShaderObj, 1, &fragmentShaderObjSource, nullptr);
     glCompileShader(fragmentShaderObj);
@@ -324,61 +306,82 @@ void main()
 
 
 
-
-float vertices[] = {
-    // Lower left corner
-    -4.5f, -0.5f, -6.5f,
-    // Lower right corner
-    7.5f, -0.5f, -6.5f,
-    // Upper right corner
-    7.5f, -0.5f,  6.5f,
-    // Upper left corner
-    -4.5f, -0.5f,  6.5f,
-    // Top corner, raised
-    0.5f, 5.0f, 0.0f
-};
+   
 
 
-    // Define the indices of the triangles
-    unsigned int indices[] = {
-        0, 1, 4,  
-        1, 2, 4, 
-        2, 3, 4,  
-        3, 0, 4   
-    };
+    float scale_factor = 0.1f;
+    float vertices[width * height * 3];
+    unsigned int indices[(width - 1) * (height - 1) * 6];
+    int vi = 0, ii = 0;
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            
+            vertices[vi++] = scale_factor * (i - width / 2.0f); // Scale the x-coordinate
+            vertices[vi++] = scale_factor * heightmap[i][j]; // Keep the y-coordinate as it is
+            vertices[vi++] = scale_factor * (j - height / 2.0f);
+            
 
-    unsigned int surfaceVAO, surfaceVBO, surfaceEBO;
+            // Add indices for the square formed by this point and its right and bottom neighbors
+            if (i < width - 1 && j < height - 1) {
+                int topLeft = i * height + j;
+                int topRight = topLeft + 1;
+                int bottomLeft = topLeft + height;
+                int bottomRight = bottomLeft + 1;
+
+                indices[ii++] = topLeft;
+                indices[ii++] = bottomLeft;
+                indices[ii++] = topRight;
+
+                indices[ii++] = topRight;
+                indices[ii++] = bottomLeft;
+                indices[ii++] = bottomRight;
+            }
+        }
+    }
+
+    float heightmap[width][height];
+
+    // Traverse through the vertices defined by the indices
+    for (int i = 0; i < width; i++) {
+        for (int j = 0; j < height; j++) {
+            // Calculate the vertex index corresponding to the current heightmap position
+            int vertexIndex = i * height + j;
+
+            // Sample the y-coordinate (height) from the vertex data
+            float yPos = vertices[vertexIndex * 3 + 1]; // Assuming y-coordinate is stored every 3 elements
+
+            // Update the heightmap with the sampled height
+            heightmap[i][j] = yPos;
+        }
+    }
+
+    // Create and bind the VAO
+    unsigned int surfaceVAO;
     glGenVertexArrays(1, &surfaceVAO);
     glBindVertexArray(surfaceVAO);
 
+    // Create and bind the VBO
+    unsigned int surfaceVBO;
     glGenBuffers(1, &surfaceVBO);
     glBindBuffer(GL_ARRAY_BUFFER, surfaceVBO);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 
+    // Create and bind the EBO
+    unsigned int surfaceEBO;
     glGenBuffers(1, &surfaceEBO);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, surfaceEBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
-    
+    // Specify the layout of the vertex data
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
 
+    // Unbind the VBO and VAO
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
 
-    
 
-    std::vector<std::vector<Vertex>> surfaceVertices;
-    for (int i = 0; i < 100; ++i) {
-        std::vector<Vertex> row;
-        for (int j = 0; j < 100; ++j) {
-            Vertex v;
-            v.position = glm::vec3(i / 100.0f - 0.5f, 0, j / 100.0f - 0.5f); // Example position
-            row.push_back(v);
-        }
-        surfaceVertices.push_back(row);
-    }
 
     
     
@@ -427,71 +430,100 @@ float vertices[] = {
     glBindVertexArray(0);
 
 
-
-
-
-
     float verticesObj[] = {
-        // positions          // normals           // texture coords
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
-         0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+                // positions          // normals           // texture coords
+                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+                 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 0.0f,
+                 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+                 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f, 1.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f, 0.0f,
+        
+                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+                 0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
+                 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+                 0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
+        
+                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        
+                 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+                 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
+                 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
+                 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
+                 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+        
+                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+                 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
+                 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+                 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
+                -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
+                -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
+        
+                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
+                 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
+                 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+                 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
+            };
+        
+            unsigned int indicesObj[] = {
+            0, 1, 2,  // first triangle
+            0, 2, 3,  // second triangle
+            4, 5, 6,  // third triangle
+            4, 6, 7,  // fourth triangle
+            8, 9, 10,  // fifth triangle
+            8, 10, 11,  // sixth triangle
+            12, 13, 14,  // seventh triangle
+            12, 14, 15,  // eighth triangle
+            16, 17, 18,  // ninth triangle
+            16, 18, 19,  // tenth triangle
+            20, 21, 22,  // eleventh triangle
+             20, 22, 23  // twelfth triangle
+            };
 
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   1.0f, 1.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,   0.0f, 0.0f,
 
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-        -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
+    
 
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f, 0.0f,
-
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f, 1.0f,
-
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f,
-         0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 1.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-         0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f, 0.0f,
-        -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 0.0f,
-        -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
-    };
-
-    unsigned int indicesObj[] = {
-    0, 1, 2,  // first triangle
-    0, 2, 3,  // second triangle
-    4, 5, 6,  // third triangle
-    4, 6, 7,  // fourth triangle
-    8, 9, 10,  // fifth triangle
-    8, 10, 11,  // sixth triangle
-    12, 13, 14,  // seventh triangle
-    12, 14, 15,  // eighth triangle
-    16, 17, 18,  // ninth triangle
-    16, 18, 19,  // tenth triangle
-    20, 21, 22,  // eleventh triangle
-     20, 22, 23  // twelfth triangle
-    };
+    unsigned int texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    // set the texture wrapping/filtering options (on currently bound texture)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    // load and generate the texture
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load("Texture/container2.jpg", &width, &height,
+        &nrChannels, 0);
+    if (data)
+    {
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+            GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+    }
+    else
+    {
+        std::cout << "Failed to load texture" << std::endl;
+    }
+    stbi_image_free(data);
 
 
+    glUseProgram(shaderProgramTexture);
+    glUniform1i(glGetUniformLocation(shaderProgramTexture, "ourTexture"), 0);
+
+
+
+    // Generate the VAO, VBO, and EBO
     unsigned int VAO, VBO, EBO;
 
     glGenVertexArrays(1, &VAO);
@@ -506,20 +538,27 @@ float vertices[] = {
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicesObj), indicesObj, GL_STATIC_DRAW);
 
-    
+    // Position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    
+    // Normal attribute
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-    
+    // Texture coordinate attribute
     glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
     glEnableVertexAttribArray(2);
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(0);
 
+   
 
+
+    
+
+
+
+//curve
 
 
     std::vector<glm::vec3> curvePoints;
@@ -593,10 +632,14 @@ float vertices[] = {
 
 
 
+
+    //render
+
     while (!glfwWindowShouldClose(window)) {
         
         camera.inputs(window);
-        character.move(window, surfaceVertices, 100, 100);
+        character.move(window);
+        //, surfaceVertices , 100, 100
         npc.updatePosition(curvePoints);
         
 
@@ -640,27 +683,23 @@ float vertices[] = {
         glBindVertexArray(paraVAO);
         glDrawArrays(GL_LINE_STRIP, 0, curvePoints.size());
 
+      
         
-        //draw object with texture
         glUseProgram(shaderProgramTexture);
-        glm::mat4 model = glm::mat4(1.0f);
-        glm::vec3 cubePosition = glm::vec3(0.0f, 0.4f, 0.5f); 
-        model = glm::translate(model, cubePosition); 
-        float angle = glm::radians(40.0f); 
-        glm::vec3 axis = glm::vec3(1.0f, 0.0f, 0.0f);
-        model = glm::rotate(model, angle, axis);
-        model = glm::scale(model, glm::vec3(0.5f));
-        GLint modelLoc = glGetUniformLocation(shaderProgramTexture, "model");
-        GLint viewLoc = glGetUniformLocation(shaderProgramTexture, "view");
-        GLint projLoc = glGetUniformLocation(shaderProgramTexture, "projection");
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+        glm::mat4 modelObj = glm::mat4(1.0f);
+        glm::vec3 objPosition = glm::vec3(0.0f, 0.4f, 0.5f); 
+        modelObj = glm::translate(modelObj, objPosition);
+        GLint modelLocObj = glGetUniformLocation(shaderProgramTexture, "model");
+        glUniformMatrix4fv(modelLocObj, 1, GL_FALSE, glm::value_ptr(modelObj));
+        GLint viewLocObj = glGetUniformLocation(shaderProgramTexture, "view");
+        glUniformMatrix4fv(viewLocObj, 1, GL_FALSE, glm::value_ptr(view));
+        GLint projLocObj = glGetUniformLocation(shaderProgramTexture, "projection");
+        glUniformMatrix4fv(projLocObj, 1, GL_FALSE, glm::value_ptr(projection));
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
-
-
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
 
 
@@ -668,7 +707,7 @@ float vertices[] = {
         glUseProgram(shaderProgram);
         
         glm::mat4 modelSurf = glm::mat4(1.0f);
-        modelSurf = glm::scale(modelSurf, glm::vec3(0.1f)); // Scale the cube as needed
+        //modelSurf = glm::scale(modelSurf, glm::vec3(0.1f)); 
         GLint modelLocSurf = glGetUniformLocation(shaderProgram, "model");
         glUniformMatrix4fv(modelLocSurf, 1, GL_FALSE, glm::value_ptr(modelSurf));
         GLint viewLocSurf = glGetUniformLocation(shaderProgram, "view");
@@ -676,10 +715,12 @@ float vertices[] = {
         GLint projLocSurf = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projLocSurf, 1, GL_FALSE, glm::value_ptr(projection));
         glBindVertexArray(surfaceVAO);
-        glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+        //glDrawElements(GL_TRIANGLES, 12, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, (width - 1) * (height - 1) * 6, GL_UNSIGNED_INT, 0);
 
 
-        // Render Cube
+
+        // Render Character
         glUseProgram(shaderProgramCharacter);
         glm::mat4 modelCube = glm::mat4(1.0f);
         modelCube = glm::translate(modelCube, character.position);

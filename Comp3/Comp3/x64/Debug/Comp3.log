@@ -1,10 +1,8 @@
-﻿  Camera.cpp
-  Comp3.cpp
+﻿  Comp3.cpp
 C:\Github\OpenGL\Oblig3\Compulsory3\Comp3\Comp3\NPC.h(21,49): warning C4244: '=': conversion from 'unsigned __int64' to 'float', possible loss of data
 C:\Github\OpenGL\Oblig3\Compulsory3\Comp3\Comp3\NPC.h(32,32): warning C4244: 'argument': conversion from 'float' to 'const unsigned __int64', possible loss of data
-C:\Github\OpenGL\Oblig3\Compulsory3\Comp3\Comp3\Comp3.cpp(641,58): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
-C:\Github\OpenGL\Oblig3\Compulsory3\Comp3\Comp3\Comp3.cpp(52,12): warning C4101: 'vertex': unreferenced local variable
-  Parametric.cpp
+C:\Github\OpenGL\Oblig3\Compulsory3\Comp3\Comp3\Comp3.cpp(684,58): warning C4267: 'argument': conversion from 'size_t' to 'GLsizei', possible loss of data
+C:\Github\OpenGL\Oblig3\Compulsory3\Comp3\Comp3\Comp3.cpp(79,12): warning C4101: 'vertex': unreferenced local variable
   character.cpp
   Generating Code...
 LINK : warning LNK4098: defaultlib 'MSVCRT' conflicts with use of other libs; use /NODEFAULTLIB:library

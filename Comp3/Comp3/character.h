@@ -1,21 +1,24 @@
 #pragma once
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <glm/glm.hpp>
-#include <vector>
+#include <glm/vec3.hpp>
 
-#include "Vertex.h"
+
+struct GLFWwindow;
 
 
 class Character {
 public:
     glm::vec3 position;
     float speed;
+    float* heightmap;
+    int width;
+    int height;
 
-    Character(glm::vec3 startPosition, float startSpeed);
 
-    void move(GLFWwindow* window, std::vector<std::vector<Vertex>>& surfaceVertices, int width, int height);
+    Character(glm::vec3 startPosition, float startSpeed, float* heightmap, int width, int height);
+    void move(GLFWwindow* window);
     float barycentricCoordinates(glm::vec3 p, glm::vec3 a, glm::vec3 b, glm::vec3 c);
+    void getTriangleForPosition(float x, float z, glm::vec3& a, glm::vec3& b, glm::vec3& c);
 };
+
 
 

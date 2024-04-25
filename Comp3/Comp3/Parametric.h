@@ -8,9 +8,11 @@
 class Parametric {
 public:
     
-    Parametric() : character(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f) {
+    /*Parametric() : character(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f) {
 
-    }
+    }*/
+
+    Parametric();
 
      float x(float t);
      float y(float t);

@@ -29,7 +29,7 @@ Camera::Camera()
 void Camera::inputs(GLFWwindow* window)
 {
     
-        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS)
+        if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) 
             position += orientation * speed;
         if (glfwGetKey(window, GLFW_KEY_RIGHT) == GLFW_PRESS)
             position += glm::normalize(glm::cross(orientation, up)) * speed;

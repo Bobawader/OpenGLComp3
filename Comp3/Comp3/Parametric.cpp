@@ -2,6 +2,11 @@
 
 
 
+Parametric::Parametric()
+    : character(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, nullptr, 0, 0) {
+    // Additional initialization logic for Parametric class if needed
+}
+
 float Parametric::x(float t) {
     return std::cos(t);
 }
